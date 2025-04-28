@@ -13,7 +13,7 @@ import warnings
 import uvicorn
 from PIL import Image
 import io
-from typing import Dict
+from typing import Dict, Any, Union
 
 # Suppress scikit-learn version mismatch warnings
 warnings.filterwarnings('ignore', category=UserWarning)
@@ -47,8 +47,8 @@ except FileNotFoundError:
 # MediaPipe setup
 mp_face_mesh = mp.solutions.face_mesh
 
-@app.get("/")
-async def root() -> Dict[str, str]:
+@app.get("/", response_model=Dict[str, Any])
+async def root() -> Dict[str, Any]:
     """Root endpoint that returns API information"""
     return {
         "message": "Welcome to Blood Pressure Prediction API",
@@ -60,7 +60,7 @@ async def root() -> Dict[str, str]:
         }
     }
 
-@app.get("/health")
+@app.get("/health", response_model=Dict[str, str])
 async def health_check() -> Dict[str, str]:
     """Health check endpoint"""
     return {
