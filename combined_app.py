@@ -1,5 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 import numpy as np
 import cv2
 import mediapipe as mp
@@ -12,11 +13,16 @@ import warnings
 import uvicorn
 from PIL import Image
 import io
+from typing import Dict
 
 # Suppress scikit-learn version mismatch warnings
 warnings.filterwarnings('ignore', category=UserWarning)
 
-app = FastAPI()
+app = FastAPI(
+    title="Blood Pressure Prediction API",
+    description="API for predicting blood pressure from facial images and videos",
+    version="1.0.0"
+)
 
 # Configure CORS to allow all origins
 app.add_middleware(
@@ -40,6 +46,27 @@ except FileNotFoundError:
 
 # MediaPipe setup
 mp_face_mesh = mp.solutions.face_mesh
+
+@app.get("/")
+async def root() -> Dict[str, str]:
+    """Root endpoint that returns API information"""
+    return {
+        "message": "Welcome to Blood Pressure Prediction API",
+        "status": "operational",
+        "documentation": "/docs",
+        "endpoints": {
+            "image_prediction": "/predict",
+            "video_prediction": "/predict_from_video"
+        }
+    }
+
+@app.get("/health")
+async def health_check() -> Dict[str, str]:
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "models_loaded": str(ridge_model is not None and lasso_model is not None)
+    }
 
 def bandpass_filter(signal, lowcut=0.75, highcut=3.5, fs=30, order=5):
     if len(signal) < 34:  # If signal is too short, pad it
@@ -183,7 +210,16 @@ def make_predictions(features):
     }
 
 @app.post("/predict")
-async def predict_bp(file: UploadFile = File(...)):
+async def predict_bp(file: UploadFile = File(...)) -> Dict[str, int]:
+    """
+    Predict blood pressure from an image file.
+    
+    Args:
+        file: Image file (JPEG, PNG)
+        
+    Returns:
+        Dictionary containing systolic and diastolic predictions
+    """
     try:
         # Read image file
         image_bytes = await file.read()
@@ -197,7 +233,16 @@ async def predict_bp(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/predict_from_video")
-async def predict_bp_from_video(file: UploadFile = File(...)):
+async def predict_bp_from_video(file: UploadFile = File(...)) -> Dict[str, int]:
+    """
+    Predict blood pressure from a video file.
+    
+    Args:
+        file: Video file (MP4)
+        
+    Returns:
+        Dictionary containing systolic and diastolic predictions
+    """
     try:
         # Save uploaded video to temporary file
         with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as temp_video:
